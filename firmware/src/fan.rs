@@ -16,8 +16,8 @@ pub struct FanControl {
     state: FanFSMState,
 }
 
-const FAN_HOLDOFF_SECS: u32 = 6;
-const FAN_HOLDON_SECS: u32 = 30;
+const FAN_HOLDOFF_SECS: u32 = 60;
+const FAN_HOLDON_SECS: u32 = 300;
 
 impl FanControl {
     pub fn update(&mut self, spindle_on: bool, now: i64) {

@@ -22,6 +22,7 @@ Changes / improvements:
 * More high-speed logic-level outputs
     * Ideally enough for step + direction for 5 axes
     * Connect to TIM channels as much as possible
+    * Better physical connector too (IDC header isn't great)
 * Reconsider mapping of GPIOs to outputs.
 * Reconsider layout
     * Isolation
