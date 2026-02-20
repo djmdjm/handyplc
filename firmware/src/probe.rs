@@ -1,4 +1,16 @@
 //! Wireless touch probe PLC logic
+//!
+//! This is mostly to implement probe detection, alarm logic and spindle
+//! inhibition. The probe accepts an enable signal sent by the CNC controller
+//! when the right tool is selected. It emits a touch detection signal which
+//! goes directly to the CNC controller, as well as alarm and low-battery
+//! signals that we combine here to a "probe detect" output that also goes
+//! back to the CNC controller.
+//!
+//! The probe's wireless connection takes a moment to establish, so there
+//! is a little finesse around the other signals becoming valid. Also, we
+//! want to disable the spindle signal whenever the probe is active to
+//! prevent stupid accident.
 use crate::simpletimer::SimpleTimer;
 use fugit::ExtU32;
 

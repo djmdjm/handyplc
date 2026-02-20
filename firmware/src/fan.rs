@@ -1,4 +1,7 @@
-//! Spindle fan PLC logic
+//! Spindle fan PLC logic.
+//!
+//! This implements a simple hold-on/hold-off controller for a spindle
+//! cooling fan.
 use fugit::ExtU32;
 use crate::simpletimer::SimpleTimer;
 

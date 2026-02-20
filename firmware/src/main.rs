@@ -29,6 +29,8 @@ use probe::ProbeControl;
 use servo_reset::ServoResetControl;
 //use simpletimer::SimpleTimer;
 
+// TIM5 is configured to provide a monotonic 1kHz tick, exposed via a mutex-
+// protected integer.
 static G_NOW: Mutex<Cell<i64>> = Mutex::new(Cell::new(0));
 static G_TIM: Mutex<RefCell<Option<CounterUs<pac::TIM5>>>> = Mutex::new(RefCell::new(None));
 
@@ -79,6 +81,7 @@ fn main() -> ! {
         cortex_m::peripheral::NVIC::unmask(pac::Interrupt::TIM5);
     }
 
+    // TODO: move all these to a separate board support library?
     let mut leds: [Option<ErasedPin<Output<PushPull>>>; 3] = [
         Some(gpioc.pc4.into_push_pull_output().speed(Speed::Low).erase()),
         Some(gpioc.pc5.into_push_pull_output().speed(Speed::Low).erase()),
@@ -151,6 +154,7 @@ fn main() -> ! {
     let mut servo_reset_out = gp_outputs[3].take().unwrap();
     let mut servo_reset_control = ServoResetControl::default();
 
+    // Mainloop.
     let mut heartbeat = leds[2].take().unwrap();
     let mut now_ms: i64 = 0;
     loop {
@@ -158,6 +162,7 @@ fn main() -> ! {
             now_ms = G_NOW.borrow(cs).get();
         });
         heartbeat.set_state(PinState::from(((now_ms / 2000) & 1) == 0));
+
         // Fan control FSM.
         fan_control.update(spindle_run.is_high(), now_ms);
         fan_run.set_state(PinState::from(fan_control.fan_state()));
