@@ -22,9 +22,11 @@ mod fan;
 mod morse;
 mod probe;
 mod simpletimer;
+mod servo_reset;
 use fan::FanControl;
 use morse::Morse;
 use probe::ProbeControl;
+use servo_reset::ServoResetControl;
 //use simpletimer::SimpleTimer;
 
 static G_NOW: Mutex<Cell<i64>> = Mutex::new(Cell::new(0));
@@ -144,6 +146,11 @@ fn main() -> ! {
     let mut probe_status_led = leds[1].take().unwrap();
     let mut probe_status_morse = Morse::default();
 
+    // Servo reset signal control.
+    let servo_reset_in = inputs[4].take().unwrap();
+    let mut servo_reset_out = gp_outputs[3].take().unwrap();
+    let mut servo_reset_control = ServoResetControl::default();
+
     let mut heartbeat = leds[2].take().unwrap();
     let mut now_ms: i64 = 0;
     loop {
@@ -170,5 +177,9 @@ fn main() -> ! {
         probe_status_morse.set_char(probe_control.status_char());
         probe_status_morse.update(now_ms);
         probe_status_led.set_state(PinState::from(probe_status_morse.output()));
+
+        // Servo reset control FSM.
+        servo_reset_control.update(servo_reset_in.is_high(), now_ms);
+        servo_reset_out.set_state(PinState::from(servo_reset_control.reset_state()));
     }
 }
