@@ -1,6 +1,7 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_main)]
 
+#[cfg(not(test))]
 use panic_halt as _;
 
 use cortex_m::interrupt::Mutex;
@@ -57,6 +58,7 @@ fn TIM5() {
     let _ = tim.wait();
 }
 
+#[cfg(not(test))]
 #[entry]
 fn main() -> ! {
     let dp = pac::Peripherals::take().unwrap();
