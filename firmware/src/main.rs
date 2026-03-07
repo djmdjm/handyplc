@@ -8,7 +8,6 @@ use cortex_m::interrupt::Mutex;
 use cortex_m_rt::entry;
 
 use stm32f4xx_hal as hal;
-use stm32f4xx_hal::pac::rcc::cfgr::MCO2;
 
 use core::cell::{Cell, RefCell};
 
@@ -18,12 +17,14 @@ use hal::pac::interrupt;
 use hal::prelude::*;
 use hal::rcc::Config;
 use hal::timer::{CounterUs, Event};
+use hal::watchdog::IndependentWatchdog;
+use hal::pac::rcc::cfgr::MCO2;
 
 mod fan;
 mod morse;
 mod probe;
-mod simpletimer;
 mod servo_reset;
+mod simpletimer;
 use fan::FanControl;
 use morse::Morse;
 use probe::ProbeControl;
@@ -74,6 +75,11 @@ fn main() -> ! {
     let gpioe = dp.GPIOE.split(&mut rcc);
     let mut _delay = dp.TIM9.delay_us(&mut rcc);
     let mut timer = dp.TIM5.counter_us(&mut rcc);
+
+    let mut watchdog = IndependentWatchdog::new(dp.IWDG);
+    if false {
+        dp.DBGMCU.apb1_fz().modify(|_, w| w.dbg_iwdg_stop().set_bit());
+    }
 
     // Start the timer to give us a 1kHz clock interrupt.
     timer.start(1.millis()).unwrap();
@@ -159,6 +165,7 @@ fn main() -> ! {
     // Mainloop.
     let mut heartbeat = leds[2].take().unwrap();
     let mut now_ms: i64 = 0;
+    watchdog.start(1.millis());
     loop {
         cortex_m::interrupt::free(|cs| {
             now_ms = G_NOW.borrow(cs).get();
@@ -188,5 +195,6 @@ fn main() -> ! {
         // Servo reset control FSM.
         servo_reset_control.update(servo_reset_in.is_high(), now_ms);
         servo_reset_out.set_state(PinState::from(servo_reset_control.reset_state()));
+        watchdog.feed();
     }
 }
