@@ -47,3 +47,10 @@ Changes / improvements:
     * General ergonomics
     * Mounting holes and pinout for cheap standard OLED screen.
     * Maybe mounting holes and pinout for general daugherboard stuff
+
+Carrier board:
+
+* Doesn't need to be as thick
+* Properly skeletonise? (current hex skeletonisation is half-assed)
+* Insert nuts instead of heat-set threads?
+* Make properly parametric
