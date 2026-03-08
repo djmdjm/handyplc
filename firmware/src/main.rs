@@ -26,11 +26,13 @@ mod probe;
 mod servo_reset;
 mod simpletimer;
 mod spindle;
+mod debounce;
 use fan::FanControl;
 use morse::Morse;
 use probe::ProbeControl;
 use servo_reset::ServoResetControl;
 use spindle::SpindleControl;
+use debounce::Debouncer;
 //use simpletimer::SimpleTimer;
 
 // TIM5 is configured to provide a monotonic 1kHz tick, exposed via a mutex-
@@ -142,7 +144,6 @@ fn main() -> ! {
         let _pc9 = gpioc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
     }
 
-    let _cabinet_button = inputs[8].take().unwrap();
     let _servo_do1 = inputs[13].take().unwrap();
     let _servo_do6 = inputs[14].take().unwrap();
     let _servo_do5 = inputs[15].take().unwrap();
@@ -177,6 +178,11 @@ fn main() -> ! {
     let mut spindle_run_out = gp_outputs[9].take().unwrap();
     let mut spindle_brake_out = gp_outputs[15].take().unwrap();
     let mut spindle_control = SpindleControl::default();
+
+    // Manual brake control.
+    let cabinet_button = inputs[8].take().unwrap();
+    let mut cabinet_button_debouncer = Debouncer::default();
+    let mut manual_brake_state : bool = false;
 
     // Mainloop.
     let mut heartbeat = leds[2].take().unwrap();
@@ -213,11 +219,18 @@ fn main() -> ! {
         // Servo reset control FSM.
         servo_reset_control.update(servo_reset_in.is_high(), now_ms);
         servo_reset_out.set_state(PinState::from(servo_reset_control.reset_state()));
+        // Manual brake control.
+        cabinet_button_debouncer.update(cabinet_button.is_high(), now_ms);
+        if cabinet_button_debouncer.posedge() {
+            manual_brake_state = !manual_brake_state;
+        }
+
         // Spindle control FSM.
         let spindle_inhibit = probe_control.spindle_inhibit();
         spindle_control.update(spindle_on, spindle_inhibit, now_ms);
         spindle_run_out.set_state(PinState::from(spindle_control.spindle_on()));
-        spindle_brake_out.set_state(PinState::from(spindle_control.brake_on()));
+        let brake_on = spindle_control.brake_on() && !manual_brake_state;
+        spindle_brake_out.set_state(PinState::from(brake_on));
 
         watchdog.feed();
     }
