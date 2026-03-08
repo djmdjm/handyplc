@@ -7,34 +7,43 @@ Errors:
 * Courtyard of U5 is reversed.
 * Microswitches were not populated. Error in annotation or production file prep?
 * Terminal block courtyards slightly wrong; too small on one side.
+* Larger silkscreen on I/O; hard to read currently
+* Mounting holes are much too small.
+    * They do work ok for M2.5 screws, just not M3 as intended.
 
 Changes / improvements:
 
-* Mounting holes are much too small.
-* dedicated FAULT LED for use by panic handler?
-* More LEDs generally
-    * RGB?
-* Mounting holes and pinout for cheap standard OLED screen.
-* headers / JST connectors for user buttons and LEDs to allow off-board use.
-* Spare GPIO headers get +5VDC too
-* More blank silkscreen annotation points.
-* TVS diodes on everything.
-* More high-speed logic-level outputs
-    * Ideally enough for step + direction for 5 axes
-    * Connect to TIM channels as much as possible
-    * Better physical connector too (IDC header isn't great)
-* Reconsider mapping of GPIOs to outputs.
+* Reconsider I/O:
+    * Some relay outputs. Omron p2r-05p sockets.
+    * Some on-board MOSFETs
+    * Piezo status buzzer
+    * Reconsider mapping of GPIOs to outputs.
+        * E.g. are TIMs mapped appropriately to inputs/outputs?
+    * More high-speed logic-level outputs
+        * Ideally enough for step + direction for 5 axes
+        * Connect to TIM channels as much as possible
+        * Better physical connector too (IDC header isn't great)
+    * Dedicated FAULT LED for use by panic handler?
+    * More LEDs generally
+        * RGB?
+    * headers / JST connectors for user buttons and LEDs to allow off-board use.
+    * RS-422 IO?
+    * Analog IO?
+* Electrical:
+    * Would be nice if inputs could be made bidi again.
+    * Spare GPIO headers get +5VDC too
+    * TVS diodes on everything.
+    * Disconnect USBPWR when MCU externally powered
+        * Manual or MOSFET
+    * Provision for RTC battery
+    * Fuse or PTC polyfuse
 * Reconsider layout
+    * Reconsider board dimensions / layout
+    * More blank silkscreen annotation points.
+    * Avoid long traces (there's plenty...)
+    * Reconsider stackup
     * Isolation
-    * Avoid long traces
     * Impedance matching of USB
     * General ergonomics
-* Reconsider stackup
-* Disconnect USBPWR when MCU externally powered
-    * Manual or MOSFET
-* Provision for RTC battery
-* Piezo status buzzer
-* RS-422 IO?
-* Analog IO?
-* Maybe mounting holes and pinout for general daugherboard stuff
-* Larger silkscreen on I/O
+    * Mounting holes and pinout for cheap standard OLED screen.
+    * Maybe mounting holes and pinout for general daugherboard stuff
