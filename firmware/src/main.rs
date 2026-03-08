@@ -25,10 +25,12 @@ mod morse;
 mod probe;
 mod servo_reset;
 mod simpletimer;
+mod spindle;
 use fan::FanControl;
 use morse::Morse;
 use probe::ProbeControl;
 use servo_reset::ServoResetControl;
+use spindle::SpindleControl;
 //use simpletimer::SimpleTimer;
 
 // TIM5 is configured to provide a monotonic 1kHz tick, exposed via a mutex-
@@ -140,16 +142,25 @@ fn main() -> ! {
         let _pc9 = gpioc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
     }
 
+    let _cabinet_button = inputs[8].take().unwrap();
+    let _servo_do1 = inputs[13].take().unwrap();
+    let _servo_do6 = inputs[14].take().unwrap();
+    let _servo_do5 = inputs[15].take().unwrap();
+
+    let mut _servo_di4 = gp_outputs[10].take().unwrap();
+    let mut _servo_di5 = gp_outputs[11].take().unwrap();
+    let mut _servo_dicw64 = gp_outputs[12].take().unwrap();
+
     // Spindle fan control.
-    let spindle_run = inputs[0].take().unwrap();
+    let spindle_run = inputs[7].take().unwrap();
     let mut fan_run = gp_outputs[0].take().unwrap();
     let mut fan_control = FanControl::default();
     let mut fan_status_led = leds[0].take().unwrap();
     let mut fan_status_morse = Morse::default();
 
     // Wireless touch probe control.
-    let probe_enable = inputs[1].take().unwrap();
-    let probe_alarm = inputs[2].take().unwrap();
+    let probe_enable = inputs[5].take().unwrap();
+    let probe_alarm = inputs[4].take().unwrap();
     let probe_lowbatt = inputs[3].take().unwrap();
     let mut probe_power = gp_outputs[1].take().unwrap();
     let mut probe_detect = gp_outputs[2].take().unwrap();
@@ -158,9 +169,14 @@ fn main() -> ! {
     let mut probe_status_morse = Morse::default();
 
     // Servo reset signal control.
-    let servo_reset_in = inputs[4].take().unwrap();
-    let mut servo_reset_out = gp_outputs[3].take().unwrap();
+    let servo_reset_in = inputs[6].take().unwrap();
+    let mut servo_reset_out = gp_outputs[8].take().unwrap();
     let mut servo_reset_control = ServoResetControl::default();
+
+    // Spindle control.
+    let mut spindle_run_out = gp_outputs[9].take().unwrap();
+    let mut spindle_brake_out = gp_outputs[15].take().unwrap();
+    let mut spindle_control = SpindleControl::default();
 
     // Mainloop.
     let mut heartbeat = leds[2].take().unwrap();
@@ -172,8 +188,10 @@ fn main() -> ! {
         });
         heartbeat.set_state(PinState::from(((now_ms / 2000) & 1) == 0));
 
+        let spindle_on = spindle_run.is_high();
+
         // Fan control FSM.
-        fan_control.update(spindle_run.is_high(), now_ms);
+        fan_control.update(spindle_on, now_ms);
         fan_run.set_state(PinState::from(fan_control.fan_state()));
         fan_status_morse.set_char(fan_control.status_char());
         fan_status_morse.update(now_ms);
@@ -195,6 +213,12 @@ fn main() -> ! {
         // Servo reset control FSM.
         servo_reset_control.update(servo_reset_in.is_high(), now_ms);
         servo_reset_out.set_state(PinState::from(servo_reset_control.reset_state()));
+        // Spindle control FSM.
+        let spindle_inhibit = probe_control.spindle_inhibit();
+        spindle_control.update(spindle_on, spindle_inhibit, now_ms);
+        spindle_run_out.set_state(PinState::from(spindle_control.spindle_on()));
+        spindle_brake_out.set_state(PinState::from(spindle_control.brake_on()));
+
         watchdog.feed();
     }
 }

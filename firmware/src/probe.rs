@@ -86,6 +86,15 @@ impl ProbeControl {
         }
     }
 
+    pub fn spindle_inhibit(&self) -> bool {
+        match self.state {
+            ProbeFSMState::POff => false,
+            ProbeFSMState::PWaitReady(_) => true,
+            ProbeFSMState::PActive => true,
+            ProbeFSMState::PErr => true,
+        }
+    }
+
     pub fn status_char(&self) -> char {
         match self.state {
             ProbeFSMState::POff => 'O',
