@@ -14,25 +14,25 @@ use core::cell::{Cell, RefCell};
 use hal::gpio::{ErasedPin, Input, Output, PinState, PushPull, Speed};
 use hal::pac;
 use hal::pac::interrupt;
+use hal::pac::rcc::cfgr::MCO2;
 use hal::prelude::*;
 use hal::rcc::Config;
 use hal::timer::{CounterUs, Event};
 use hal::watchdog::IndependentWatchdog;
-use hal::pac::rcc::cfgr::MCO2;
 
+mod debounce;
 mod fan;
 mod morse;
 mod probe;
 mod servo_reset;
 mod simpletimer;
 mod spindle;
-mod debounce;
+use debounce::Debouncer;
 use fan::FanControl;
 use morse::Morse;
 use probe::ProbeControl;
 use servo_reset::ServoResetControl;
 use spindle::SpindleControl;
-use debounce::Debouncer;
 //use simpletimer::SimpleTimer;
 
 // TIM5 is configured to provide a monotonic 1kHz tick, exposed via a mutex-
@@ -82,7 +82,9 @@ fn main() -> ! {
 
     let mut watchdog = IndependentWatchdog::new(dp.IWDG);
     if false {
-        dp.DBGMCU.apb1_fz().modify(|_, w| w.dbg_iwdg_stop().set_bit());
+        dp.DBGMCU
+            .apb1_fz()
+            .modify(|_, w| w.dbg_iwdg_stop().set_bit());
     }
 
     // Start the timer to give us a 1kHz clock interrupt.
@@ -144,6 +146,7 @@ fn main() -> ! {
         let _pc9 = gpioc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
     }
 
+    let _no_fault_in = inputs[11].take().unwrap();
     let _servo_do1 = inputs[13].take().unwrap();
     let _servo_do6 = inputs[14].take().unwrap();
     let _servo_do5 = inputs[15].take().unwrap();
@@ -160,9 +163,9 @@ fn main() -> ! {
     let mut fan_status_morse = Morse::default();
 
     // Wireless touch probe control.
-    let probe_enable = inputs[5].take().unwrap();
-    let probe_alarm = inputs[4].take().unwrap();
-    let probe_lowbatt = inputs[3].take().unwrap();
+    let probe_enable = inputs[4].take().unwrap();
+    let probe_alarm = inputs[3].take().unwrap();
+    let probe_lowbatt = inputs[2].take().unwrap();
     let mut probe_power = gp_outputs[1].take().unwrap();
     let mut probe_detect = gp_outputs[2].take().unwrap();
     let mut probe_control = ProbeControl::default();
@@ -170,19 +173,19 @@ fn main() -> ! {
     let mut probe_status_morse = Morse::default();
 
     // Servo reset signal control.
-    let servo_reset_in = inputs[6].take().unwrap();
+    let servo_reset_in = inputs[12].take().unwrap();
     let mut servo_reset_out = gp_outputs[8].take().unwrap();
     let mut servo_reset_control = ServoResetControl::default();
 
     // Spindle control.
     let mut spindle_run_out = gp_outputs[9].take().unwrap();
-    let mut spindle_brake_out = gp_outputs[15].take().unwrap();
+    let mut spindle_brake_release_out = gp_outputs[15].take().unwrap();
     let mut spindle_control = SpindleControl::default();
 
     // Manual brake control.
     let cabinet_button = inputs[8].take().unwrap();
     let mut cabinet_button_debouncer = Debouncer::default();
-    let mut manual_brake_state : bool = false;
+    let mut manual_brake_state: bool = false;
 
     // Mainloop.
     let mut heartbeat = leds[2].take().unwrap();
@@ -229,8 +232,8 @@ fn main() -> ! {
         let spindle_inhibit = probe_control.spindle_inhibit();
         spindle_control.update(spindle_on, spindle_inhibit, now_ms);
         spindle_run_out.set_state(PinState::from(spindle_control.spindle_on()));
-        let brake_on = spindle_control.brake_on() && !manual_brake_state;
-        spindle_brake_out.set_state(PinState::from(brake_on));
+        let brake_release_on = !spindle_control.brake_on() || manual_brake_state;
+        spindle_brake_release_out.set_state(PinState::from(brake_release_on));
 
         watchdog.feed();
     }
