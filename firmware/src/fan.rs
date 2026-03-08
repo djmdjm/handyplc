@@ -2,16 +2,16 @@
 //!
 //! This implements a simple hold-on/hold-off controller for a spindle
 //! cooling fan.
-use fugit::ExtU32;
 use crate::simpletimer::SimpleTimer;
+use fugit::ExtU32;
 
 #[derive(Default)]
 enum FanFSMState {
     #[default]
-    FOff,
-    FHoldOff(SimpleTimer),
-    FOn,
-    FHoldOn(SimpleTimer),
+    Off,
+    HoldOff(SimpleTimer),
+    On,
+    HoldOn(SimpleTimer),
 }
 
 #[derive(Default)]
@@ -25,30 +25,30 @@ const FAN_HOLDON_SECS: u32 = 300;
 impl FanControl {
     pub fn update(&mut self, spindle_on: bool, now: i64) {
         match &self.state {
-            FanFSMState::FOff => {
+            FanFSMState::Off => {
                 if spindle_on {
                     self.state =
-                        FanFSMState::FHoldOff(SimpleTimer::start(now, FAN_HOLDOFF_SECS.secs()))
+                        FanFSMState::HoldOff(SimpleTimer::start(now, FAN_HOLDOFF_SECS.secs()))
                 }
             }
-            FanFSMState::FHoldOff(holdoff) => {
+            FanFSMState::HoldOff(holdoff) => {
                 if !spindle_on {
-                    self.state = FanFSMState::FOff
+                    self.state = FanFSMState::Off
                 } else if holdoff.expired(now) {
-                    self.state = FanFSMState::FOn
+                    self.state = FanFSMState::On
                 }
             }
-            FanFSMState::FOn => {
+            FanFSMState::On => {
                 if !spindle_on {
                     self.state =
-                        FanFSMState::FHoldOn(SimpleTimer::start(now, FAN_HOLDON_SECS.secs()))
+                        FanFSMState::HoldOn(SimpleTimer::start(now, FAN_HOLDON_SECS.secs()))
                 }
             }
-            FanFSMState::FHoldOn(holdon) => {
+            FanFSMState::HoldOn(holdon) => {
                 if spindle_on {
-                    self.state = FanFSMState::FOn
+                    self.state = FanFSMState::On
                 } else if holdon.expired(now) {
-                    self.state = FanFSMState::FOff
+                    self.state = FanFSMState::Off
                 }
             }
         }
@@ -56,20 +56,19 @@ impl FanControl {
 
     pub fn fan_state(&self) -> bool {
         match self.state {
-            FanFSMState::FOff => false,
-            FanFSMState::FHoldOff(_) => false,
-            FanFSMState::FOn => true,
-            FanFSMState::FHoldOn(_) => true,
+            FanFSMState::Off => false,
+            FanFSMState::HoldOff(_) => false,
+            FanFSMState::On => true,
+            FanFSMState::HoldOn(_) => true,
         }
     }
 
     pub fn status_char(&self) -> char {
         match self.state {
-            FanFSMState::FOff => 'N',
-            FanFSMState::FHoldOff(_) => 'D',
-            FanFSMState::FOn => 'R',
-            FanFSMState::FHoldOn(_) => 'U',
+            FanFSMState::Off => 'N',
+            FanFSMState::HoldOff(_) => 'D',
+            FanFSMState::On => 'R',
+            FanFSMState::HoldOn(_) => 'U',
         }
     }
 }
-

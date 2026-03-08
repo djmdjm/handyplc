@@ -20,9 +20,9 @@ use crate::simpletimer::SimpleTimer;
 #[derive(Default)]
 enum ServoResetFSMState {
     #[default]
-    Roff,
-    ROn,
-    RHoldOn(SimpleTimer),
+    Off,
+    On,
+    HoldOn(SimpleTimer),
 }
 
 #[derive(Default)]
@@ -35,22 +35,22 @@ const RESET_HOLDON_MS: u32 = 50;
 impl ServoResetControl {
     pub fn update(&mut self, reset_on: bool, now: i64) {
         match &self.state {
-            ServoResetFSMState::Roff => {
+            ServoResetFSMState::Off => {
                 if reset_on {
-                    self.state = ServoResetFSMState::ROn;
+                    self.state = ServoResetFSMState::On;
                 }
             }
-            ServoResetFSMState::ROn => {
+            ServoResetFSMState::On => {
                 if !reset_on {
                     self.state =
-                        ServoResetFSMState::RHoldOn(SimpleTimer::start(now, RESET_HOLDON_MS.millis()))
+                        ServoResetFSMState::HoldOn(SimpleTimer::start(now, RESET_HOLDON_MS.millis()))
                 }
             }
-            ServoResetFSMState::RHoldOn(holdon) => {
+            ServoResetFSMState::HoldOn(holdon) => {
                 if reset_on {
-                    self.state = ServoResetFSMState::ROn
+                    self.state = ServoResetFSMState::On
                 } else if holdon.expired(now) {
-                    self.state = ServoResetFSMState::Roff
+                    self.state = ServoResetFSMState::Off
                 }
             }
         }
@@ -58,18 +58,18 @@ impl ServoResetControl {
 
     pub fn reset_state(&self) -> bool {
         match self.state {
-            ServoResetFSMState::Roff => false,
-            ServoResetFSMState::ROn => true,
-            ServoResetFSMState::RHoldOn(_) => true,
+            ServoResetFSMState::Off => false,
+            ServoResetFSMState::On => true,
+            ServoResetFSMState::HoldOn(_) => true,
         }
     }
 
     #[allow(dead_code)]
     pub fn status_char(&self) -> char {
         match self.state {
-            ServoResetFSMState::Roff => 'L',
-            ServoResetFSMState::ROn => 'M',
-            ServoResetFSMState::RHoldOn(_) => 'Y',
+            ServoResetFSMState::Off => 'L',
+            ServoResetFSMState::On => 'M',
+            ServoResetFSMState::HoldOn(_) => 'Y',
         }
     }
 }

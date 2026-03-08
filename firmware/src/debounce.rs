@@ -7,10 +7,10 @@ use fugit::ExtU32;
 #[derive(Default)]
 enum DebounceFSMState {
     #[default]
-    SOff,
-    SDebounceOn(SimpleTimer),
-    SOn,
-    SDebounceOff(SimpleTimer),
+    Off,
+    DebounceOn(SimpleTimer),
+    On,
+    DebounceOff(SimpleTimer),
 }
 
 pub struct Debouncer {
@@ -26,7 +26,7 @@ const DEBOUNCE_OFF_MS: u32 = 10;
 impl Debouncer {
     pub fn default() -> Self {
         Debouncer {
-            state: DebounceFSMState::SOff,
+            state: DebounceFSMState::Off,
             posedge_read: false,
             holdoff_time: DEBOUNCE_ON_MS.millis(),
             holdon_time: DEBOUNCE_OFF_MS.millis(),
@@ -37,39 +37,39 @@ impl Debouncer {
         holdon_time: fugit::Duration<u32, 1, 1_000>,
     ) -> Self {
         Debouncer {
-            state: DebounceFSMState::SOff,
+            state: DebounceFSMState::Off,
             posedge_read: false,
-            holdoff_time: holdoff_time,
-            holdon_time: holdon_time,
+            holdoff_time,
+            holdon_time,
         }
     }
     pub fn update(&mut self, input: bool, now: i64) {
         match &self.state {
-            DebounceFSMState::SOff => {
+            DebounceFSMState::Off => {
                 if input {
                     self.state =
-                        DebounceFSMState::SDebounceOn(SimpleTimer::start(now, self.holdoff_time))
+                        DebounceFSMState::DebounceOn(SimpleTimer::start(now, self.holdoff_time))
                 }
             }
-            DebounceFSMState::SDebounceOn(timer) => {
+            DebounceFSMState::DebounceOn(timer) => {
                 if !input {
-                    self.state = DebounceFSMState::SOff;
+                    self.state = DebounceFSMState::Off;
                 } else if timer.expired(now) {
-                    self.state = DebounceFSMState::SOn;
+                    self.state = DebounceFSMState::On;
                     self.posedge_read = false;
                 }
             }
-            DebounceFSMState::SOn => {
+            DebounceFSMState::On => {
                 if !input {
                     self.state =
-                        DebounceFSMState::SDebounceOff(SimpleTimer::start(now, self.holdon_time))
+                        DebounceFSMState::DebounceOff(SimpleTimer::start(now, self.holdon_time))
                 }
             }
-            DebounceFSMState::SDebounceOff(timer) => {
+            DebounceFSMState::DebounceOff(timer) => {
                 if input {
-                    self.state = DebounceFSMState::SOn;
+                    self.state = DebounceFSMState::On;
                 } else if timer.expired(now) {
-                    self.state = DebounceFSMState::SOff;
+                    self.state = DebounceFSMState::Off;
                 }
             }
         }
@@ -77,18 +77,18 @@ impl Debouncer {
 
     pub fn is_on(&self) -> bool {
         match self.state {
-            DebounceFSMState::SOff => false,
-            DebounceFSMState::SDebounceOn(_) => false,
-            DebounceFSMState::SOn => true,
-            DebounceFSMState::SDebounceOff(_) => true,
+            DebounceFSMState::Off => false,
+            DebounceFSMState::DebounceOn(_) => false,
+            DebounceFSMState::On => true,
+            DebounceFSMState::DebounceOff(_) => true,
         }
     }
 
     pub fn posedge(&mut self) -> bool {
         match self.state {
-            DebounceFSMState::SOff => false,
-            DebounceFSMState::SDebounceOn(_) => false,
-            DebounceFSMState::SOn | DebounceFSMState::SDebounceOff(_) => {
+            DebounceFSMState::Off => false,
+            DebounceFSMState::DebounceOn(_) => false,
+            DebounceFSMState::On | DebounceFSMState::DebounceOff(_) => {
                 if self.posedge_read {
                     false
                 } else {

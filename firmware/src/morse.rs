@@ -1,6 +1,7 @@
 //! Morse code status output
 //!
 //! Used to blink a LED with a status charater
+#![allow(clippy::identity_op)]
 use crate::simpletimer::SimpleTimer;
 use fugit::ExtU32;
 

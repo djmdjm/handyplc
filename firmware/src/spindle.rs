@@ -10,10 +10,10 @@ use fugit::ExtU32;
 #[derive(Default)]
 enum SpindleFSMState {
     #[default]
-    SOff,
-    SWaitBrakeOff(SimpleTimer),
-    SRunning,
-    SWaitBrakeOn(SimpleTimer),
+    Off,
+    WaitBrakeOff(SimpleTimer),
+    Running,
+    WaitBrakeOn(SimpleTimer),
 }
 
 #[derive(Default)]
@@ -27,32 +27,32 @@ const BRAKE_ON_MS: u32 = 1000;
 impl SpindleControl {
     pub fn update(&mut self, spindle_on: bool, spindle_inhibit: bool, now: i64) {
         match &self.state {
-            SpindleFSMState::SOff => {
+            SpindleFSMState::Off => {
                 if spindle_on && !spindle_inhibit {
-                    self.state = SpindleFSMState::SWaitBrakeOff(SimpleTimer::start(
+                    self.state = SpindleFSMState::WaitBrakeOff(SimpleTimer::start(
                         now,
                         BRAKE_OFF_MS.millis(),
                     ))
                 }
             }
-            SpindleFSMState::SWaitBrakeOff(timer) => {
+            SpindleFSMState::WaitBrakeOff(timer) => {
                 if !spindle_on || spindle_inhibit {
-                    self.state = SpindleFSMState::SOff;
+                    self.state = SpindleFSMState::Off;
                 } else if timer.expired(now) {
-                    self.state = SpindleFSMState::SRunning;
+                    self.state = SpindleFSMState::Running;
                 }
             }
-            SpindleFSMState::SRunning => {
+            SpindleFSMState::Running => {
                 if !spindle_on || spindle_inhibit {
                     self.state =
-                        SpindleFSMState::SWaitBrakeOn(SimpleTimer::start(now, BRAKE_ON_MS.millis()))
+                        SpindleFSMState::WaitBrakeOn(SimpleTimer::start(now, BRAKE_ON_MS.millis()))
                 }
             }
-            SpindleFSMState::SWaitBrakeOn(timer) => {
+            SpindleFSMState::WaitBrakeOn(timer) => {
                 if spindle_on && !spindle_inhibit {
-                    self.state = SpindleFSMState::SRunning;
+                    self.state = SpindleFSMState::Running;
                 } else if timer.expired(now) {
-                    self.state = SpindleFSMState::SOff;
+                    self.state = SpindleFSMState::Off;
                 }
             }
         }
@@ -60,29 +60,29 @@ impl SpindleControl {
 
     pub fn spindle_on(&self) -> bool {
         match self.state {
-            SpindleFSMState::SOff => false,
-            SpindleFSMState::SWaitBrakeOff(_) => false,
-            SpindleFSMState::SRunning => true,
-            SpindleFSMState::SWaitBrakeOn(_) => false,
+            SpindleFSMState::Off => false,
+            SpindleFSMState::WaitBrakeOff(_) => false,
+            SpindleFSMState::Running => true,
+            SpindleFSMState::WaitBrakeOn(_) => false,
         }
     }
 
     pub fn brake_on(&self) -> bool {
         match self.state {
-            SpindleFSMState::SOff => true,
-            SpindleFSMState::SWaitBrakeOff(_) => false,
-            SpindleFSMState::SRunning => false,
-            SpindleFSMState::SWaitBrakeOn(_) => false,
+            SpindleFSMState::Off => true,
+            SpindleFSMState::WaitBrakeOff(_) => false,
+            SpindleFSMState::Running => false,
+            SpindleFSMState::WaitBrakeOn(_) => false,
         }
     }
 
     #[allow(dead_code)]
     pub fn status_char(&self) -> char {
         match self.state {
-            SpindleFSMState::SOff => 'O',
-            SpindleFSMState::SWaitBrakeOff(_) => 'D',
-            SpindleFSMState::SRunning => 'R',
-            SpindleFSMState::SWaitBrakeOn(_) => 'B',
+            SpindleFSMState::Off => 'O',
+            SpindleFSMState::WaitBrakeOff(_) => 'D',
+            SpindleFSMState::Running => 'R',
+            SpindleFSMState::WaitBrakeOn(_) => 'B',
         }
     }
 }

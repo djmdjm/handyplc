@@ -146,7 +146,7 @@ fn main() -> ! {
     // Enable to expose sysclk on MCO2.
     if false {
         rcc.cfgr().modify(|_, w| w.mco2().variant(MCO2::Sysclk));
-        let _pc9 = gpioc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
+        gpioc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
     }
 
     let _no_fault_in = inputs[11].take().unwrap();

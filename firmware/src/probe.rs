@@ -17,10 +17,10 @@ use fugit::ExtU32;
 #[derive(Default)]
 enum ProbeFSMState {
     #[default]
-    POff,
-    PWaitReady(SimpleTimer),
-    PActive,
-    PErr,
+    Off,
+    WaitReady(SimpleTimer),
+    Active,
+    Error,
 }
 
 #[derive(Default)]
@@ -33,36 +33,36 @@ const PROBE_WAIT_MS: u32 = 500;
 impl ProbeControl {
     pub fn update(&mut self, probe_enable: bool, probe_alarm: bool, probe_lowbatt: bool, now: i64) {
         match &self.state {
-            ProbeFSMState::POff => {
+            ProbeFSMState::Off => {
                 if probe_enable {
                     self.state =
-                        ProbeFSMState::PWaitReady(SimpleTimer::start(now, PROBE_WAIT_MS.millis()))
+                        ProbeFSMState::WaitReady(SimpleTimer::start(now, PROBE_WAIT_MS.millis()))
                 }
             }
-            ProbeFSMState::PWaitReady(timer) => {
+            ProbeFSMState::WaitReady(timer) => {
                 if !probe_enable {
-                    self.state = ProbeFSMState::POff;
+                    self.state = ProbeFSMState::Off;
                 } else if timer.expired(now) {
                     if probe_alarm || probe_lowbatt {
-                        self.state = ProbeFSMState::PErr;
+                        self.state = ProbeFSMState::Error;
                     } else {
-                        self.state = ProbeFSMState::PActive;
+                        self.state = ProbeFSMState::Active;
                     }
                 }
             }
-            ProbeFSMState::PActive => {
+            ProbeFSMState::Active => {
                 if !probe_enable {
-                    self.state = ProbeFSMState::POff;
+                    self.state = ProbeFSMState::Off;
                 } else if probe_alarm || probe_lowbatt {
-                    self.state = ProbeFSMState::PErr;
+                    self.state = ProbeFSMState::Error;
                 }
             }
-            ProbeFSMState::PErr => {
+            ProbeFSMState::Error => {
                 if !probe_enable {
-                    self.state = ProbeFSMState::POff;
+                    self.state = ProbeFSMState::Off;
                 } else if !probe_alarm && !probe_lowbatt {
                     self.state =
-                        ProbeFSMState::PWaitReady(SimpleTimer::start(now, PROBE_WAIT_MS.millis()))
+                        ProbeFSMState::WaitReady(SimpleTimer::start(now, PROBE_WAIT_MS.millis()))
                 }
             }
         }
@@ -70,37 +70,37 @@ impl ProbeControl {
 
     pub fn probe_power(&self) -> bool {
         match self.state {
-            ProbeFSMState::POff => false,
-            ProbeFSMState::PWaitReady(_) => true,
-            ProbeFSMState::PActive => true,
-            ProbeFSMState::PErr => true,
+            ProbeFSMState::Off => false,
+            ProbeFSMState::WaitReady(_) => true,
+            ProbeFSMState::Active => true,
+            ProbeFSMState::Error => true,
         }
     }
 
     pub fn probe_detect(&self) -> bool {
         match self.state {
-            ProbeFSMState::POff => false,
-            ProbeFSMState::PWaitReady(_) => false,
-            ProbeFSMState::PActive => true,
-            ProbeFSMState::PErr => false,
+            ProbeFSMState::Off => false,
+            ProbeFSMState::WaitReady(_) => false,
+            ProbeFSMState::Active => true,
+            ProbeFSMState::Error => false,
         }
     }
 
     pub fn spindle_inhibit(&self) -> bool {
         match self.state {
-            ProbeFSMState::POff => false,
-            ProbeFSMState::PWaitReady(_) => true,
-            ProbeFSMState::PActive => true,
-            ProbeFSMState::PErr => true,
+            ProbeFSMState::Off => false,
+            ProbeFSMState::WaitReady(_) => true,
+            ProbeFSMState::Active => true,
+            ProbeFSMState::Error => true,
         }
     }
 
     pub fn status_char(&self) -> char {
         match self.state {
-            ProbeFSMState::POff => 'O',
-            ProbeFSMState::PWaitReady(_) => 'W',
-            ProbeFSMState::PActive => 'A',
-            ProbeFSMState::PErr => 'X',
+            ProbeFSMState::Off => 'O',
+            ProbeFSMState::WaitReady(_) => 'W',
+            ProbeFSMState::Active => 'A',
+            ProbeFSMState::Error => 'X',
         }
     }
 }
