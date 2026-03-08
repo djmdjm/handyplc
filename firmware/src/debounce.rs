@@ -13,24 +13,42 @@ enum DebounceFSMState {
     SDebounceOff(SimpleTimer),
 }
 
-#[derive(Default)]
 pub struct Debouncer {
     state: DebounceFSMState,
     posedge_read: bool,
+    holdoff_time: fugit::Duration<u32, 1, 1_000>,
+    holdon_time: fugit::Duration<u32, 1, 1_000>,
 }
 
 const DEBOUNCE_ON_MS: u32 = 2;
 const DEBOUNCE_OFF_MS: u32 = 10;
 
 impl Debouncer {
+    pub fn default() -> Self {
+        Debouncer {
+            state: DebounceFSMState::SOff,
+            posedge_read: false,
+            holdoff_time: DEBOUNCE_ON_MS.millis(),
+            holdon_time: DEBOUNCE_OFF_MS.millis(),
+        }
+    }
+    pub fn new(
+        holdoff_time: fugit::Duration<u32, 1, 1_000>,
+        holdon_time: fugit::Duration<u32, 1, 1_000>,
+    ) -> Self {
+        Debouncer {
+            state: DebounceFSMState::SOff,
+            posedge_read: false,
+            holdoff_time: holdoff_time,
+            holdon_time: holdon_time,
+        }
+    }
     pub fn update(&mut self, input: bool, now: i64) {
         match &self.state {
             DebounceFSMState::SOff => {
                 if input {
-                    self.state = DebounceFSMState::SDebounceOn(SimpleTimer::start(
-                        now,
-                        DEBOUNCE_ON_MS.millis(),
-                    ))
+                    self.state =
+                        DebounceFSMState::SDebounceOn(SimpleTimer::start(now, self.holdoff_time))
                 }
             }
             DebounceFSMState::SDebounceOn(timer) => {
@@ -43,10 +61,8 @@ impl Debouncer {
             }
             DebounceFSMState::SOn => {
                 if !input {
-                    self.state = DebounceFSMState::SDebounceOff(SimpleTimer::start(
-                        now,
-                        DEBOUNCE_OFF_MS.millis(),
-                    ))
+                    self.state =
+                        DebounceFSMState::SDebounceOff(SimpleTimer::start(now, self.holdon_time))
                 }
             }
             DebounceFSMState::SDebounceOff(timer) => {
@@ -59,8 +75,7 @@ impl Debouncer {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn output(&self) -> bool {
+    pub fn is_on(&self) -> bool {
         match self.state {
             DebounceFSMState::SOff => false,
             DebounceFSMState::SDebounceOn(_) => false,
@@ -69,7 +84,6 @@ impl Debouncer {
         }
     }
 
-    #[allow(dead_code)]
     pub fn posedge(&mut self) -> bool {
         match self.state {
             DebounceFSMState::SOff => false,

@@ -35,6 +35,9 @@ use servo_reset::ServoResetControl;
 use spindle::SpindleControl;
 //use simpletimer::SimpleTimer;
 
+const LONG_PRESS_HOLDOFF_MS: u32 = 2000;
+const LONG_PRESS_HOLDON_MS: u32 = 10;
+
 // TIM5 is configured to provide a monotonic 1kHz tick, exposed via a mutex-
 // protected integer.
 static G_NOW: Mutex<Cell<i64>> = Mutex::new(Cell::new(0));
@@ -172,20 +175,24 @@ fn main() -> ! {
     let mut probe_status_led = leds[1].take().unwrap();
     let mut probe_status_morse = Morse::default();
 
+    // Manual brake control.
+    let cabinet_button = inputs[8].take().unwrap();
+    let mut cabinet_button_debouncer = Debouncer::default();
+    let mut manual_brake_state: bool = false;
+
     // Servo reset signal control.
     let servo_reset_in = inputs[12].take().unwrap();
     let mut servo_reset_out = gp_outputs[8].take().unwrap();
     let mut servo_reset_control = ServoResetControl::default();
+    let mut cabinet_button_longpress = Debouncer::new(
+        LONG_PRESS_HOLDOFF_MS.millis(),
+        LONG_PRESS_HOLDON_MS.millis(),
+    );
 
     // Spindle control.
     let mut spindle_run_out = gp_outputs[9].take().unwrap();
     let mut spindle_brake_release_out = gp_outputs[15].take().unwrap();
     let mut spindle_control = SpindleControl::default();
-
-    // Manual brake control.
-    let cabinet_button = inputs[8].take().unwrap();
-    let mut cabinet_button_debouncer = Debouncer::default();
-    let mut manual_brake_state: bool = false;
 
     // Mainloop.
     let mut heartbeat = leds[2].take().unwrap();
@@ -220,7 +227,9 @@ fn main() -> ! {
         probe_status_led.set_state(PinState::from(probe_status_morse.output()));
 
         // Servo reset control FSM.
-        servo_reset_control.update(servo_reset_in.is_high(), now_ms);
+        cabinet_button_longpress.update(cabinet_button.is_high(), now_ms);
+        let reset_asserted = servo_reset_in.is_high() || cabinet_button_longpress.is_on();
+        servo_reset_control.update(reset_asserted, now_ms);
         servo_reset_out.set_state(PinState::from(servo_reset_control.reset_state()));
         // Manual brake control.
         cabinet_button_debouncer.update(cabinet_button.is_high(), now_ms);
